@@ -1,4 +1,4 @@
-use std::os::fd::AsRawFd;
+
 use std::{env, thread};
 use std::io::{self, Read, Write};
 use serialport::{self, SerialPort, TTYPort};
@@ -9,12 +9,9 @@ fn main() {
     let baud_rate = &args[2];
 
     let (mut master_tx, slave) = TTYPort::pair().expect("Unable to create a pseudo-terminal");
-    println!("Master ptty fd: {}, path: {:?}", master_tx.as_raw_fd(), master_tx.name());
-    println!("Slave ptty fd: {}, path: {:?}", slave.as_raw_fd(), slave.name());
     let mut master_rx = master_tx.try_clone().expect("Failed to clone");
 
-    // Drop the slave to ensure that GDB can open it
-    // drop(slave);
+    println!("Virtual serial port created. GDB should connect to the file {:?}", slave.name().expect("This should have a name"));
 
     let mut port_rx = serialport::new(real_serial, baud_rate.parse().unwrap()).open().expect("Failed to open port");
     let mut port_tx = port_rx.try_clone().expect("Failed to clone");
@@ -37,7 +34,6 @@ fn main() {
                         }
 
                         if in_gdb_packet || gdb_checksum_counter > 0 || buffer[0] as char == '+' || buffer[0] as char == '-' {
-                            println!("remote -> gdb: {}", buffer[0] as char);
                             master_tx.write(&buffer).expect("Could not write to master");
                             if gdb_checksum_counter > 0 {
                                 gdb_checksum_counter -= 1;
@@ -61,7 +57,6 @@ fn main() {
             match master_rx.read(&mut buffer) {
                 Ok(n) => {
                     if n == 1 {
-                        println!("gdb -> remote: {}", buffer[0] as char);
                         port_tx.write(&buffer).expect("Could not write to port\n");
                     }
                 }
