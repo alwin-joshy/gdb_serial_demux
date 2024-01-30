@@ -32,13 +32,12 @@ fn main() {
                             in_gdb_packet = true;
                         } else if buffer[0] as char == '#' && in_gdb_packet {
                             in_gdb_packet = false;
-                            gdb_checksum_counter = 2;
-                        } else if gdb_checksum_counter > 0 {
-                            assert!((buffer[0] as char).is_digit(10));
+                            /* this is kinda ugly*/
+                            gdb_checksum_counter = 3;
                         }
 
                         if in_gdb_packet || gdb_checksum_counter > 0 || buffer[0] as char == '+' || buffer[0] as char == '-' {
-                            // println!("Sending {}", buffer[0] as char);
+                            println!("remote -> gdb: {}", buffer[0] as char);
                             master_tx.write(&buffer).expect("Could not write to master");
                             if gdb_checksum_counter > 0 {
                                 gdb_checksum_counter -= 1;
@@ -62,6 +61,7 @@ fn main() {
             match master_rx.read(&mut buffer) {
                 Ok(n) => {
                     if n == 1 {
+                        println!("gdb -> remote: {}", buffer[0] as char);
                         port_tx.write(&buffer).expect("Could not write to port\n");
                     }
                 }
